@@ -59,7 +59,8 @@ export async function proxy(request: NextRequest) {
   if (
     (pathname.startsWith("/dashboard") ||
       pathname.startsWith("/entry") ||
-      pathname.startsWith("/import")) &&
+      pathname.startsWith("/import") ||
+      pathname.startsWith("/house")) &&
     !user
   ) {
     const url = request.nextUrl.clone();

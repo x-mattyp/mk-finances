@@ -44,13 +44,30 @@ function drawYearDivider(chart: Chart, first2026Index: number | null) {
   ctx.lineTo(x, bottom);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = TICK;
+  ctx.fillStyle = "rgba(122,120,112,0.68)";
   ctx.font = `10px ${CHART_FONT}`;
   ctx.textBaseline = "top";
+
+  const y = top + 6;
+  const gap = 8;
+  const pad = 10;
+  const label2025 = "2025";
+  const label2026 = "2026";
+  const w2025 = ctx.measureText(label2025).width;
+  const w2026 = ctx.measureText(label2026).width;
+  const x2025 = Math.min(
+    right - pad,
+    Math.max(left + pad + w2025, x - gap),
+  );
+  const x2026 = Math.max(
+    left + pad,
+    Math.min(right - pad - w2026, x + gap),
+  );
+
   ctx.textAlign = "right";
-  ctx.fillText("2025", Math.max(left + 2, x - 6), top + 4);
+  ctx.fillText(label2025, x2025, y);
   ctx.textAlign = "left";
-  ctx.fillText("2026", Math.min(right - 2, x + 6), top + 4);
+  ctx.fillText(label2026, x2026, y);
   ctx.restore();
 }
 

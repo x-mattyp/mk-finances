@@ -1,58 +1,67 @@
--- Run in Supabase SQL Editor (or via CLI migrations)
+-- LFLED Picks Pool schema. Paste into Supabase -> SQL Editor -> Run.
 
-create table if not exists public.entries (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
-  year int not null,
-  month int not null check (month >= 1 and month <= 12),
-  matty_w2 numeric,
-  matty_1099 numeric,
-  matty_other numeric,
-  kara_w2 numeric,
-  kara_other numeric,
-  income_net numeric,
-  exp_home numeric,
-  exp_food numeric,
-  exp_travel numeric,
-  exp_fun numeric,
-  exp_gifts numeric,
-  exp_transport numeric,
-  exp_shopping numeric,
-  exp_selfcare numeric,
-  exp_loans numeric,
-  exp_student_loans numeric,
-  exp_taxes numeric,
-  sav_btc numeric,
-  sav_ira numeric,
-  sav_fund numeric,
-  asset_cash numeric,
-  asset_btc numeric,
-  asset_equities numeric,
-  asset_retirement numeric,
-  asset_other numeric,
-  liab_credit_cards numeric,
-  liab_student_loan numeric,
-  liab_other_loans numeric,
-  unique (user_id, year, month)
+create table members (
+  id bigint generated always as identity primary key,
+  name text not null unique,
+  pin_hash text,                       -- bcrypt hash; null until first login
+  is_admin boolean not null default false,
+  external_team_id text,               -- ESPN team id or Sleeper roster id
+  failed_attempts int not null default 0,
+  locked_until timestamptz,
+  created_at timestamptz not null default now()
 );
 
-alter table public.entries enable row level security;
+create table settings (
+  id int primary key default 1 check (id = 1),
+  season int not null default 2026,
+  current_week int not null default 1,
+  platform text not null default 'manual' check (platform in ('manual', 'espn', 'sleeper')),
+  league_id text
+);
 
-create policy "Users read own entries"
-  on public.entries for select
-  using (auth.uid() = user_id);
+create table weeks (
+  id bigint generated always as identity primary key,
+  season int not null,
+  week int not null,
+  locked boolean not null default false,
+  stake numeric(10,2),
+  odds text,
+  payout numeric(10,2),
+  unique (season, week)
+);
 
-create policy "Users insert own entries"
-  on public.entries for insert
-  with check (auth.uid() = user_id);
+create table scores (
+  week_id bigint not null references weeks(id) on delete cascade,
+  member_id bigint not null references members(id) on delete cascade,
+  points numeric(7,2) not null,
+  source text not null default 'manual',
+  updated_at timestamptz not null default now(),
+  primary key (week_id, member_id)
+);
 
-create policy "Users update own entries"
-  on public.entries for update
-  using (auth.uid() = user_id);
+create table picks (
+  week_id bigint not null references weeks(id) on delete cascade,
+  member_id bigint not null references members(id) on delete cascade,
+  bet text not null,
+  odds text,
+  result text not null default 'pending' check (result in ('pending', 'win', 'loss', 'push')),
+  updated_at timestamptz not null default now(),
+  primary key (week_id, member_id)
+);
 
-create policy "Users delete own entries"
-  on public.entries for delete
-  using (auth.uid() = user_id);
+-- Lock every table down. The app talks to the database only from the server
+-- with the service-role key, so nobody can read PIN hashes or edit picks
+-- directly with the public anon key.
+alter table members  enable row level security;
+alter table settings enable row level security;
+alter table weeks    enable row level security;
+alter table scores   enable row level security;
+alter table picks    enable row level security;
 
-create index if not exists entries_user_year_month_idx
-  on public.entries (user_id, year, month);
+insert into settings (season, current_week) values (2026, 1);
+
+insert into members (name, is_admin) values
+  ('Berg', false), ('Big Mike', false), ('Cal', false), ('Duce', false),
+  ('Ian', false), ('Jack', false), ('Matty', true), ('Morelli', false),
+  ('Murray', false), ('Pat', false), ('Reed', false), ('Terry', false),
+  ('Tony', false), ('Will', false);
